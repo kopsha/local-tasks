@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+set -e
+
+main()
+{
+    case $1 in
+        shell)
+            bash
+            ;;
+        develop)
+            printf "\t ..: Starting the developer loop\n"
+            find ./ -name "*.py" | entr -r ./main.py
+            ;;
+        start)
+            printf "\t ..: Starting celery worker\n"
+            celery --app tasks worker --loglevel=INFO --events --queues fakey --detach
+            flask --app main --debug run --host=0.0.0.0
+            ;;
+        *)
+            printf "\t ..: Invoking '$*'\n"
+            exec "$@"
+            ;;
+    esac
+}
+
+cd /app/src
+main "$@"

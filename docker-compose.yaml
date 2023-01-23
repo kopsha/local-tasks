@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+    amqp:
+        image: rabbitmq:3-management-alpine
+        container_name: amqp
+        ports:
+            - "5672:5672"
+            - "15672:15672"
+        # volumes:
+        #     - ./amqp/data/:/var/lib/rabbitmq/
+        #     - ./amqp/logs/:/var/log/rabbitmq/
+        networks:
+            - hallway
+        # restart: unless-stopped
+
+    worker:
+        build: ./worker
+        volumes:
+            - ./worker/src:/app/src
+        user: "1051:1051"
+        ports:
+            - "5000:5000"
+        # restart: unless-stopped
+        networks:
+            - hallway
+
+networks:
+    hallway:
+        driver: bridge
