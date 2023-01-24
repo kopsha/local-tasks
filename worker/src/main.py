@@ -1,49 +1,52 @@
 #!/usr/bin/env python3
 from os import environ
-from flask import Flask, jsonify, request
+from itertools import chain
+from flask import Flask, request, make_response, url_for, redirect, jsonify
 from rq import Queue
 from rq.job import Job
+import redis
 
-from worker import use_redis
-from tasks import fake_work
+from worker import use_queue
+from tasks import inspect_repo
 
-
+redis_client = redis.from_url(environ.get("REDIS_URL"))
 app = Flask(__name__)
-taskq = Queue(connection=use_redis)
+inspector_queue = Queue(name=use_queue, connection=redis_client)
 
 
-@app.route("/")
-def all_jobs():
-    jobs = dict(
-        pending=dict(),
-        current=dict(),
-        finished=dict(),
-        failed=dict(),
-    )
-    for job in taskq.jobs:
-        jobs["pending"][job.id] = job.args[0]
-
-    for job_id in taskq.started_job_registry.get_job_ids():
-        job = Job.fetch(job_id, connection=use_redis)
-        jobs["current"][job_id] = job.args[0]
-
-    for job_id in taskq.finished_job_registry.get_job_ids():
-        job = Job.fetch(job_id, connection=use_redis)
-        jobs["finished"][job_id] = job.args[0]
-
-    for job_id in taskq.failed_job_registry.get_job_ids():
-        job = Job.fetch(job_id, connection=use_redis)
-        jobs["failed"][job_id] = job.args[0]
-
-    return jsonify(jobs)
+def get_recent_jobs():
+    jobs = [
+        (job.args[0], job.get_status())
+        for job_id in chain(
+            inspector_queue.failed_job_registry.get_job_ids(),
+            inspector_queue.finished_job_registry.get_job_ids(),
+            inspector_queue.started_job_registry.get_job_ids(),
+            inspector_queue.get_job_ids(),
+        )
+        if (job := Job.fetch(job_id, connection=redis_client))
+    ]
+    return jobs
 
 
-@app.route("/fakey")
-def fakey():
+@app.route("/recent")
+def recent():
+    return jsonify(get_recent_jobs())
+
+
+@app.route("/cloney")
+def cloney():
     url = request.args.get("url")
-    print("starting", url, flush=True)
-    result = taskq.enqueue(fake_work, url)
-    return jsonify(dict(url=url, description=result.description))
+    if not url.startswith("https://"):
+        return make_response("Please provide an https url to your git repository.", 400)
+
+    recent = dict(get_recent_jobs())
+    if url in recent:
+        # the url was recently inspected
+        return dict(url=url, status=recent[url])
+
+    job = inspector_queue.enqueue(inspect_repo, url)
+
+    return dict(url=url, status=job.get_status())
 
 
 if __name__ == "__main__":

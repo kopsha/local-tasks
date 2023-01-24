@@ -8,8 +8,7 @@ RUN apt update && apt install --yes \
     && rm -rf /var/lib/apt/lists/*
 
 # install python dependencies
-RUN mkdir -p /app/src \
-    && mkdir -p /app/socks
+RUN mkdir -p /app/src
 WORKDIR /app
 
 COPY requirements.txt /app/

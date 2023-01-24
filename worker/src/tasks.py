@@ -1,10 +1,20 @@
 #!/usr/bin/env python3
-from time import sleep
-from random import random
+import subprocess
+from tempfile import TemporaryDirectory
 
 
-def fake_work(url):
-    fake_it = random() * 10
-    print(f"faking {url} for {fake_it:.3f} seconds")
-    sleep(fake_it)
-    print("finished", url)
+def exec(cmd, cwd):
+    completed = subprocess.run(cmd, shell=True, capture_output=True, cwd=cwd)
+    completed.check_returncode()
+    result = (
+        completed.stdout.decode("utf-8").strip(),
+        completed.stderr.decode("utf-8").strip(),
+    )
+    return result
+
+
+def inspect_repo(url):
+    with TemporaryDirectory() as area51:
+        cmd = f"git clone {url} {area51}"
+        out, err = exec(cmd, area51)
+        print("finished", url)
