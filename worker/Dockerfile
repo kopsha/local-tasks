@@ -31,6 +31,7 @@ COPY entrypoint /app/
 ENTRYPOINT ["/app/entrypoint"]
 
 # prepare application
+ENV PYTHONUNBUFFERED=1
 VOLUME ["/app/src"]
 CMD [ "start" ]
 EXPOSE 5000

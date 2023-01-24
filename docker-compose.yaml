@@ -1,18 +1,13 @@
 version: "3.9"
 
 services:
-    amqp:
-        image: rabbitmq:3-management-alpine
-        container_name: amqp
+    cache:
+        image: redis:7-alpine
         ports:
-            - "5672:5672"
-            - "15672:15672"
-        # volumes:
-        #     - ./amqp/data/:/var/lib/rabbitmq/
-        #     - ./amqp/logs/:/var/log/rabbitmq/
+            - "6379:6379"
         networks:
             - hallway
-        # restart: unless-stopped
+        restart: unless-stopped
 
     worker:
         build: ./worker
@@ -21,7 +16,9 @@ services:
         user: "1051:1051"
         ports:
             - "5000:5000"
-        # restart: unless-stopped
+        environment:
+            - REDIS_URL=redis://cache:6379
+            - PORT=5000
         networks:
             - hallway
 

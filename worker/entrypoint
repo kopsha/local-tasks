@@ -13,9 +13,10 @@ main()
             find ./ -name "*.py" | entr -r ./main.py
             ;;
         start)
-            printf "\t ..: Starting celery worker\n"
-            celery --app tasks worker --loglevel=INFO --events --queues fakey --detach
-            flask --app main --debug run --host=0.0.0.0
+            printf "\t ..: Starting queue worker\n"
+            ./worker.py &
+            printf "\t ..: Starting application\n"
+            ./main.py
             ;;
         *)
             printf "\t ..: Invoking '$*'\n"
